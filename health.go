@@ -24,19 +24,29 @@ type HealthCheck interface {
 	ExecuteCheck(map[string][]string) (Status, *string)
 }
 
-type HealthzMetaResponse struct {
+type HealthzMetaComponent struct {
 	DisplayName string `json:"displayName"`
 	Description string `json:"description"`
 	Identifier string `json:"identifier"`
 }
 
+type HealthzMetaResponse struct {
+	DisplayName string `json:"displayName"`
+	Identifier string `json:"identifier"`
+	Components []HealthzMetaComponent `json:"components"`
+}
+
 var healthChecks []HealthCheck
+var healthDisplayName string
+var healthIdentifier string
 
 func RegisterHealthCheck(check HealthCheck) {
 	healthChecks = append(healthChecks, check)
 }
 
-func Setup(e *gin.Engine) {
+func Setup(identifier string, displayName string, e *gin.Engine) {
+	healthIdentifier = identifier
+	healthDisplayName = displayName
 	e.GET("/healthz", healthz)
 	e.GET("/healthz/meta", healthzMeta)
 }
@@ -93,16 +103,20 @@ func statusToString(status Status) string {
 
 func healthzMeta(c *gin.Context) {
 
-	var result []HealthzMetaResponse
+	var result []HealthzMetaComponent
 
 	for _, item := range healthChecks {
 		meta := item.GetMeta()
-		result = append(result, HealthzMetaResponse{
+		result = append(result, HealthzMetaComponent{
 			Description: meta.Description,
 			DisplayName: meta.DisplayName,
 			Identifier: meta.Identifier,
 		})
 	}
 
-	c.JSON(200, result)
+	c.JSON(200, HealthzMetaResponse{
+		Identifier: healthIdentifier,
+		DisplayName: healthDisplayName,
+		Components: result,
+	})
 }
