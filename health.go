@@ -21,7 +21,7 @@ type HealthCheckMeta struct {
 
 type HealthCheck interface {
 	GetMeta() HealthCheckMeta
-	ExecuteCheck(map[string][]string) Status
+	ExecuteCheck(map[string][]string) (Status, *string)
 }
 
 type HealthzMetaResponse struct {
@@ -48,14 +48,21 @@ func healthz(c *gin.Context) {
 
 	for _, item := range healthChecks {
 		meta := item.GetMeta()
-		result := item.ExecuteCheck(c.Request.URL.Query())
+		result, message := item.ExecuteCheck(c.Request.URL.Query())
 
 		if meta.Fatal && result > worst {
 			worst = result
 		}
 
-		response[meta.Identifier] = map[string]string {
-			"status": statusToString(result),
+		if message != nil && len(*message) > 0 {
+			response[meta.Identifier] = map[string]string {
+				"status": statusToString(result),
+				"message": *message,
+			}
+		} else {
+			response[meta.Identifier] = map[string]string {
+				"status": statusToString(result),
+			}
 		}
 	}
 
