@@ -16,7 +16,6 @@ type HealthCheckMeta struct {
 	Fatal bool
 	Identifier string
 	DisplayName string
-	Description string
 }
 
 type HealthCheck interface {
@@ -24,39 +23,32 @@ type HealthCheck interface {
 	ExecuteCheck(map[string][]string) (Status, *string)
 }
 
-type HealthzMetaComponent struct {
-	DisplayName string `json:"displayName"`
-	Description string `json:"description"`
-	Identifier string `json:"identifier"`
+type HealthCheckManager struct {
+	displayName string
+	healthChecks []HealthCheck
 }
 
-type HealthzMetaResponse struct {
-	DisplayName string `json:"displayName"`
-	Identifier string `json:"identifier"`
-	Components []HealthzMetaComponent `json:"components"`
+func NewHealthCheckManager(displayName string) *HealthCheckManager {
+	return &HealthCheckManager{
+		displayName: displayName,
+	}
 }
 
-var healthChecks []HealthCheck
-var healthDisplayName string
-var healthIdentifier string
-
-func RegisterHealthCheck(check HealthCheck) {
-	healthChecks = append(healthChecks, check)
+func (h *HealthCheckManager) Register(check HealthCheck) {
+	h.healthChecks = append(h.healthChecks, check)
 }
 
-func Setup(identifier string, displayName string, e *gin.Engine) {
-	healthIdentifier = identifier
-	healthDisplayName = displayName
-	e.GET("/healthz", healthz)
-	e.GET("/healthz/meta", healthzMeta)
+func (h *HealthCheckManager)SetupWithGin(e *gin.Engine) {
+	e.GET("/healthz", h.healthz)
+	e.GET("/healthz/", h.healthz)
 }
 
-func healthz(c *gin.Context) {
+func (h *HealthCheckManager)healthz(c *gin.Context) {
 	var worst Status = UP
 
-	var response map[string]interface{}
+	response := make(map[string]interface{})
 
-	for _, item := range healthChecks {
+	for _, item := range h.healthChecks {
 		meta := item.GetMeta()
 		result, message := item.ExecuteCheck(c.Request.URL.Query())
 
@@ -67,16 +59,19 @@ func healthz(c *gin.Context) {
 		if message != nil && len(*message) > 0 {
 			response[meta.Identifier] = map[string]string {
 				"status": statusToString(result),
-				"message": *message,
+				"_message": *message,
+				"_displayName": meta.DisplayName,
 			}
 		} else {
 			response[meta.Identifier] = map[string]string {
 				"status": statusToString(result),
+				"_displayName": meta.DisplayName,
 			}
 		}
 	}
 
 	response["status"] = statusToString(worst)
+	response["_displayName"] = h.displayName
 
 	if worst < 2 {
 		c.JSON(200, response)
@@ -99,24 +94,4 @@ func statusToString(status Status) string {
 	} else {
 		return "UNKNOWN"
 	}
-}
-
-func healthzMeta(c *gin.Context) {
-
-	var result []HealthzMetaComponent
-
-	for _, item := range healthChecks {
-		meta := item.GetMeta()
-		result = append(result, HealthzMetaComponent{
-			Description: meta.Description,
-			DisplayName: meta.DisplayName,
-			Identifier: meta.Identifier,
-		})
-	}
-
-	c.JSON(200, HealthzMetaResponse{
-		Identifier: healthIdentifier,
-		DisplayName: healthDisplayName,
-		Components: result,
-	})
 }
