@@ -38,6 +38,11 @@ func (h *HealthCheckManager) Register(check HealthCheck) {
 	h.healthChecks = append(h.healthChecks, check)
 }
 
+func (h *HealthCheckManager)SetupWithGinAndPrefix(prefix string, e *gin.Engine) {
+	e.GET(prefix + "/healthz", h.healthz)
+	e.GET((prefix + "/healthz/", h.healthz)
+}
+
 func (h *HealthCheckManager)SetupWithGin(e *gin.Engine) {
 	e.GET("/healthz", h.healthz)
 	e.GET("/healthz/", h.healthz)
