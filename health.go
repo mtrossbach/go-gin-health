@@ -51,8 +51,8 @@ func (h *HealthCheckManager) Register(check HealthCheck) {
 func (h *HealthCheckManager)SetupWithGinAndPrefix(prefix string, e *gin.Engine) {
 	e.GET(prefix + "/healthz", h.liveness)
 	e.GET(prefix + "/healthz/", h.liveness)
-	e.GET("/readyz", h.readiness)
-	e.GET("/readyz/", h.readiness)
+	e.GET(prefix + "/readyz", h.readiness)
+	e.GET(prefix + "/readyz/", h.readiness)
 }
 
 func (h *HealthCheckManager)SetupWithGin(e *gin.Engine) {
