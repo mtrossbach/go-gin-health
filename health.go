@@ -88,6 +88,10 @@ func (h *HealthCheckManager)healthz(c *gin.Context, probeType ProbeType) {
 	response := make(map[string]interface{})
 
 	for _, item := range h.healthChecks {
+		if !item.SupportsProbeType(probeType) {
+			continue
+		}
+
 		meta := item.GetMeta()
 		result, message := item.ExecuteCheck(c.Request.URL.Query(), probeType)
 
